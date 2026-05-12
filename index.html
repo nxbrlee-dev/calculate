@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Freight Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Malgun Gothic', sans-serif; background-color: #f8fafc; }
+        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(226, 232, 240, 0.8); }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-5xl mx-auto space-y-6">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Air Freight Tool</h1>
+                <p class="text-slate-500 text-sm">환율 계산, 항공 스케줄 관리 및 이메일 자동화</p>
+            </div>
+            <div class="text-right">
+                <span id="current-date" class="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">2024.05.12</span>
+            </div>
+        </header>
+
+        <!-- 1. Currency Converter Section -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800">환율 계산기 (1 USD = 1,450 KRW)</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">KRW (한화)</label>
+                    <input type="number" id="input-krw" placeholder="금액을 입력하세요" 
+                        class="w-full p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                        oninput="calculateUSD()">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">USD (달러)</label>
+                    <div class="relative">
+                        <input type="text" id="output-usd" readonly placeholder="0.00" 
+                            class="w-full p-3 rounded-xl border border-slate-200 bg-slate-50 font-bold text-emerald-600 outline-none">
+                        <span class="absolute right-4 top-3 text-slate-400">$</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Flight Schedule Section -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold text-slate-800">항공편 스케줄 자동 기재</h2>
+            </div>
+            
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="flight-no" placeholder="항공편명 입력 (예: KE081, OZ202)" 
+                    class="flex-1 p-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none uppercase">
+                <button onclick="searchFlight()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors">
+                    조회
+                </button>
+            </div>
+
+            <div class="overflow-hidden rounded-xl border border-slate-100 shadow-inner">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 text-slate-600">
+                        <tr>
+                            <th class="p-4 font-semibold">구분</th>
+                            <th class="p-4 font-semibold">Flight No.</th>
+                            <th class="p-4 font-semibold">Origin (출발)</th>
+                            <th class="p-4 font-semibold">Destination (도착)</th>
+                            <th class="p-4 font-semibold">Schedule (ETD/ETA)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body" class="bg-white divide-y divide-slate-100">
+                        <tr class="text-slate-400">
+                            <td colspan="5" class="p-8 text-center italic">항공편명을 입력하고 조회를 눌러주세요.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 3. Email Generator Section -->
+        <section class="glass-card rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <h2 class="text-xl font-bold text-slate-800">이메일 알림 자동 생성</h2>
+                </div>
+                <button onclick="copyEmail()" class="text-xs font-semibold text-purple-600 border border-purple-200 px-3 py-1 rounded-lg hover:bg-purple-50 transition-colors">
+                    전체 복사
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <textarea id="email-preview" rows="10" 
+                    class="w-full p-5 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-mono text-sm leading-relaxed outline-none focus:ring-2 focus:ring-purple-400"></textarea>
+                
+                <div class="flex gap-2">
+                    <button onclick="updateEmailTemplate('shipper')" class="flex-1 py-2 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-100 transition-colors">화주용</button>
+                    <button onclick="updateEmailTemplate('agent')" class="flex-1 py-2 rounded-lg border border-slate-200 text-sm font-medium hover:bg-slate-100 transition-colors">현지 에이전트용</button>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        const FLIGHT_DB = {
+            'KE081': { origin: 'ICN (인천)', dest: 'JFK (뉴욕)', etd: '10:00 (KST)', eta: '11:00 (EDT)', status: 'On Time' },
+            'OZ202': { origin: 'ICN (인천)', dest: 'LAX (로스앤젤레스)', etd: '14:40 (KST)', eta: '09:50 (PDT)', status: 'Scheduled' },
+            'CX411': { origin: 'ICN (인천)', dest: 'HKG (홍콩)', etd: '15:15 (KST)', eta: '18:05 (HKT)', status: 'Delayed' },
+            'DL158': { origin: 'ICN (인천)', dest: 'DTW (디트로이트)', etd: '10:25 (KST)', eta: '10:15 (EDT)', status: 'On Time' }
+        };
+
+        let currentFlight = null;
+        let currentUSD = "0.00";
+
+        function calculateUSD() {
+            const krw = document.getElementById('input-krw').value;
+            const output = document.getElementById('output-usd');
+            if (krw > 0) {
+                const result = (krw / 1450).toFixed(2);
+                currentUSD = Number(result).toLocaleString();
+                output.value = currentUSD;
+            } else {
+                currentUSD = "0.00";
+                output.value = "";
+            }
+            generateEmail();
+        }
+
+        function searchFlight() {
+            const flightNo = document.getElementById('flight-no').value.toUpperCase().trim();
+            const tbody = document.getElementById('schedule-body');
+            
+            if (!flightNo) {
+                alert("항공편명을 입력해주세요.");
+                return;
+            }
+
+            // Mock Lookup: DB에 없으면 가상 데이터 생성
+            const info = FLIGHT_DB[flightNo] || {
+                origin: 'ICN (인천)',
+                dest: 'Unknown Port',
+                etd: 'TBA',
+                eta: 'TBA',
+                status: 'Verify Required'
+            };
+
+            currentFlight = { no: flightNo, ...info };
+
+            tbody.innerHTML = `
+                <tr class="hover:bg-blue-50 transition-colors">
+                    <td class="p-4 font-medium text-blue-600">Main Flight</td>
+                    <td class="p-4 font-bold text-slate-800">${flightNo}</td>
+                    <td class="p-4 text-slate-700">${info.origin}</td>
+                    <td class="p-4 text-slate-700">${info.dest}</td>
+                    <td class="p-4 text-slate-700 font-medium">${info.etd} → ${info.eta}</td>
+                </tr>
+            `;
+
+            generateEmail();
+        }
+
+        function generateEmail(type = 'shipper') {
+            const preview = document.getElementById('email-preview');
+            const today = new Date().toLocaleDateString('ko-KR');
+            
+            const flightNo = currentFlight ? currentFlight.no : "[항공편명 미입력]";
+            const route = currentFlight ? `${currentFlight.origin} to ${currentFlight.dest}` : "[노선 미확정]";
+            const schedule = currentFlight ? `ETD: ${currentFlight.etd} / ETA: ${currentFlight.eta}` : "[스케줄 미정]";
+            const fare = currentUSD !== "0.00" ? `$${currentUSD}` : "[운임 미산정]";
+
+            let template = "";
+
+            if (type === 'shipper') {
+                template = `안녕하세요, 화주님.\n항공 운임 및 스케줄 관련하여 아래와 같이 안내드립니다.\n\n[항공 운송 정보]\n- 항공편명: ${flightNo}\n- 구간: ${route}\n- 예상 스케줄: ${schedule}\n- 적용 운임: ${fare} (기준 환율 1,450원 적용)\n\n위 내용 확인 부탁드리며, 추가 문의사항 있으시면 언제든 연락 주십시오.\n감사합니다.`;
+            } else {
+                template = `Dear Partner,\n\nPlease find the shipment details below for the upcoming booking.\n\n[Shipment Info]\n- Flight No: ${flightNo}\n- Routing: ${route}\n- Schedule: ${schedule}\n- Agreed Rate: ${fare}\n\nPlease check the space availability and confirm back to us.\nBest Regards.`;
+            }
+
+            preview.value = template;
+        }
+
+        function updateEmailTemplate(type) {
+            generateEmail(type);
+        }
+
+        function copyEmail() {
+            const textarea = document.getElementById('email-preview');
+            textarea.select();
+            document.execCommand('copy');
+            
+            const btn = event.target;
+            const originalText = btn.innerText;
+            btn.innerText = "복사 완료!";
+            btn.classList.add('bg-purple-600', 'text-white');
+            
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.remove('bg-purple-600', 'text-white');
+            }, 2000);
+        }
+
+        // 초기 날짜 설정
+        document.getElementById('current-date').innerText = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+        // 초기 이메일 생성
+        generateEmail();
+
+    </script>
+</body>
+</html>
